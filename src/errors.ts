@@ -1,0 +1,8 @@
+/** Błąd z kodem HTTP; `message` trafia do klienta jako `{ "error": message }`. */
+export class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
