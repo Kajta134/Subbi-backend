@@ -27,8 +27,8 @@ Konfiguracja przez zmienne środowiskowe (zob. `.env.example`; plik `.env` możn
 
 ### Połączenie z aplikacją
 
-- **Symulator iOS:** adres `http://localhost:3000` działa od razu.
-- **Telefon:** w aplikacji (ekran logowania → „Adres serwera”) wpisz adres IP Maca w sieci lokalnej, np. `http://192.168.1.20:3000`.
+- **Symulator iOS:** działa zarówno `http://localhost:3000`, jak i adres IP Maca.
+- **Telefon:** ustaw w Xcode (target *subbi* → Build Settings → `API_BASE_URL`) adres IP Maca w sieci lokalnej, np. `http://192.168.1.20:3000`.
 
 ## API
 
@@ -68,6 +68,21 @@ Endpointy oznaczone 🔒 wymagają nagłówka `Authorization: Bearer <token>`.
 
 Tokeny JWT są ważne 30 dni. Synchronizacja działa na zasadzie „ostatni zapis wygrywa”: aplikacja wysyła całą listę po każdej zmianie.
 
+## Wdrożenie na serwer
+
+1. **Uruchom backend** na dowolnym hostingu z Node 24+ lub Dockerem (VPS, Fly.io, Render, Railway…):
+   ```sh
+   docker build -t subbi-backend .
+   docker run -d --name subbi -p 3000:3000 -v subbi-data:/data \
+     -e JWT_SECRET="$(openssl rand -hex 32)" subbi-backend
+   ```
+   Bez Dockera: `npm ci --omit=dev`, a potem `NODE_ENV=production JWT_SECRET=… DB_PATH=/sciezka/subbi.db node src/server.ts`.
+   - `JWT_SECRET` ustaw raz i nie zmieniaj, bo jego zmiana wyloguje wszystkich użytkowników. W trybie produkcyjnym serwer bez niego nie wystartuje.
+   - Baza SQLite musi leżeć na trwałym dysku (wolumen `/data`). Na platformach z ulotnym systemem plików podłącz „volume”/„disk”.
+2. **HTTPS jest wymagane.** iOS (App Transport Security) blokuje zwykłe `http://` do serwerów w internecie. Większość platform daje HTTPS od razu. Na VPS-ie postaw przed serwerem reverse proxy z certyfikatem, np. Caddy: `api.twojadomena.pl { reverse_proxy localhost:3000 }`.
+3. **Sprawdź:** `curl https://api.twojadomena.pl/health` → `{"status":"ok"}`.
+4. **Wpisz adres w aplikacji:** Xcode → target *subbi* → Build Settings → `API_BASE_URL` (konfiguracja **Release**), np. `https://api.twojadomena.pl`, bez `/` na końcu. Do testów w domowej sieci ustaw w **Debug** adres Maca, np. `http://192.168.1.20:3000`. W aplikacji nie ma pola do wpisywania adresu.
+
 ## Ograniczenia
 
-To celowo prosty serwer: nie ma limitów prób logowania, resetu hasła przez e-mail ani HTTPS (do wdrożenia poza siecią lokalną postaw go za reverse proxy z TLS).
+To celowo prosty serwer: nie ma limitów prób logowania, resetu hasła przez e-mail ani własnego HTTPS (zob. „Wdrożenie na serwer”).
