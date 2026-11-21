@@ -1,0 +1,50 @@
+// Schemat bazy subbi. Po zmianie: npm run db:new-migration -- <nazwa>
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  // CommonJS i importy bez rozszerzeń – tak kompiluje Nest (tsc) i ts-jest.
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+// Adres bazy (DATABASE_URL) jest w prisma.config.ts.
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  /// Zawsze zapisywany małymi literami.
+  email         String         @unique
+  name          String
+  passwordHash  String         @map("password_hash")
+  /// Zwiększany przy zmianie hasła – unieważnia wcześniej wydane tokeny.
+  tokenVersion  Int            @default(0) @map("token_version")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  subscriptions Subscription[]
+
+  @@map("users")
+}
+
+/// Kształt zgodny z modelem `Subscription` w aplikacji iOS.
+model Subscription {
+  userId       String   @map("user_id")
+  /// UUID nadawany przez aplikację.
+  id           String
+  /// Kolejność na liście w aplikacji.
+  position     Int
+  name         String
+  price        Float
+  /// "month" | "year"
+  period       String
+  firstPayment DateTime @map("first_payment")
+  /// "entertainment" | "tools" | "other"
+  category     String
+  symbol       String
+  colorHex     Int      @map("color_hex")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, id])
+  @@map("subscriptions")
+}

@@ -1,13 +1,13 @@
-export interface Config {
+const DEV_SECRET = 'subbi-dev-secret-nie-uzywac-na-produkcji';
+
+export interface AppConfig {
   port: number;
   host: string;
-  dbPath: string;
+  databaseUrl: string;
   jwtSecret: string;
 }
 
-const DEV_SECRET = 'subbi-dev-secret-nie-uzywac-na-produkcji';
-
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   let jwtSecret = env.JWT_SECRET ?? '';
   if (!jwtSecret) {
     if (env.NODE_ENV === 'production') {
@@ -20,7 +20,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     port: Number(env.PORT ?? 3000),
     host: env.HOST ?? '0.0.0.0',
-    dbPath: env.DB_PATH ?? './data/subbi.db',
+    databaseUrl: env.DATABASE_URL ?? 'file:./data/subbi.db',
     jwtSecret,
   };
 }
+
+/** Token wstrzykiwania konfiguracji (`@Inject(APP_CONFIG)`). */
+export const APP_CONFIG = Symbol('APP_CONFIG');

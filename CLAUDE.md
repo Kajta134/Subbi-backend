@@ -2,30 +2,39 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Backend for the **subbi** iOS app (the sibling repo `../subbi2`). It handles user accounts and syncs each user's subscription list. See `README.md` for the full API table.
+Backend for the **subbi** iOS app (the sibling repo `../subbi2`). It handles user accounts and syncs each user's subscription list. Stack: NestJS 12, Prisma 7 (SQLite through `@prisma/adapter-better-sqlite3`), `@nestjs/swagger`, `class-validator`. See `README.md` for the API table and deployment steps.
 
 ## Commands
 
 ```sh
-npm install
-npm run dev          # node --watch src/server.ts
-npm test             # node --test "test/**/*.test.ts"
-npm run typecheck    # tsc (noEmit)
-node --test --test-name-pattern="zmiana hasła" "test/**/*.test.ts"   # run one test
+npm install                 # also runs `prisma generate` (postinstall)
+npm run dev                 # prisma migrate deploy + nest start --watch
+npm test                    # Jest e2e suite (test/*.e2e-spec.ts)
+npm test -- -t "zmiana hasła"   # run a single test by name
+npm run typecheck           # tsc over src + test
+npm run db:new-migration -- <name>   # after editing prisma/schema.prisma
 ```
 
-Requires Node ≥ 24. There is no build step: Node runs the `.ts` files directly through type stripping. Because of that:
-- Relative imports must include the `.ts` extension.
-- Only erasable syntax is allowed (`erasableSyntaxOnly`): no `enum`, no `namespace` with values, no constructor parameter properties.
-- `tsc` is used only for type checking.
+Requires Node ≥ 24.
+- Nest 12 packages are **ESM-only** while this project compiles to CommonJS. That works because Node 24 supports `require(esm)`.
+- For the same reason, Jest has to run with `node --experimental-vm-modules`, which is already in the `test` script. Don't replace it with plain `jest`.
+- The `allowScripts` field in `package.json` approves the native/engine install scripts: `better-sqlite3`, `prisma`, `@prisma/engines`.
 
 ## Architecture
 
-- `src/app.ts`: `createApp({ db, jwtSecret })` builds the Express app without listening, so tests can start it on port 0 with an in-memory database (`openDatabase(':memory:')`). `src/server.ts` is the only entry point that reads env config (`src/config.ts`).
-- `src/db.ts`: the schema, which uses `CREATE TABLE IF NOT EXISTS` and has no migration tool, plus the `transaction()` and `isUniqueViolation()` helpers. It uses the built-in `node:sqlite` (`DatabaseSync`, synchronous).
-- `src/http.ts`: JWT signing, the `requireAuth` middleware (puts the user row in `res.locals.user`; read it with `currentUser(res)`), and the central `errorHandler`.
-  - Route handlers **throw** errors. Express 5 forwards both sync throws and async rejections to the error handler.
-  - The handler turns `HttpError` into `{ error }` and `ZodError` into `400 { error, field }`.
-- Tokens carry `ver` = `users.token_version`. Changing the password increments it, which invalidates all older tokens. `requireAuth` checks the version on every request.
-- `src/schemas.ts`: zod v4 schemas with the Polish locale (`z.config(z.locales.pl())`). Error messages are shown directly in the app, so keep them in Polish.
-- Subscription sync is whole-list replace (`PUT /subscriptions`), stored with a `position` column to keep the order. The JSON shape must match the Swift `Subscription` Codable model in `../subbi2/subbi/Models/Models.swift`, with dates in ISO 8601. Change both sides together.
+- **Prisma**:
+  - The client is generated into `src/generated/prisma` (gitignored). The generator uses `moduleFormat = "cjs"` and `importFileExtension = ""` so that `nest build` and ts-jest can compile it.
+  - The DB URL comes from `prisma.config.ts` for the CLI and from `AppConfig.databaseUrl` for `PrismaService`. Both read `DATABASE_URL`.
+  - `DateTime` columns are stored as ISO text by the adapter.
+- **Config is passed explicitly**: `AppModule.with(config)` provides `APP_CONFIG`. `main.ts` builds the config from env (`src/config.ts`). Tests build their own config with a temporary DB in `test/utils.ts`, which runs `prisma migrate deploy` on a fresh SQLite file.
+- **`src/setup-app.ts`** holds everything that `main.ts` and the tests must share: the JSON body parser, the global `ValidationPipe`, `AllExceptionsFilter` and the Swagger setup (`/docs`, `/docs-json`). The app is created with `bodyParser: false`, and the parser is mounted by hand so that malformed or oversized JSON gets the `{ error }` format.
+- **Error contract**: the iOS app shows `error` to users as-is, so every message must be in Polish.
+  - Every error response is `{ error: string, field?: string }`.
+  - Throw `ApiError(status, message, field?)`. Validation errors are converted in `common/validation.ts`, and `AllExceptionsFilter` maps any other `HttpException` to a generic Polish message.
+- **Auth**:
+  - `AuthGuard` verifies the HS256 JWT and loads the user. It compares `payload.ver` with `user.tokenVersion`, so a password change, which increments the version, revokes old tokens.
+  - Controllers read the user with `@CurrentUser()`.
+  - The guard is used from several modules, so each such module must import `UsersModule`.
+- **Subscription sync** replaces the whole list (`PUT /subscriptions`) inside a single Prisma `$transaction`, with a `position` column to keep the order.
+  - The body is a JSON array. The global `ValidationPipe` skips arrays, so the controller takes `@Body() body: unknown` and validates it with `validateArray()`, which reports error fields as `"2.price"`.
+  - The DTO shape must match the Swift `Subscription` Codable model in `../subbi2/subbi/Models/Models.swift`. Change both sides together.
