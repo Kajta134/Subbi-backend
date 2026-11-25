@@ -35,6 +35,7 @@ Konfiguracja przez zmienne środowiskowe albo plik `.env` (wczytywany automatycz
 - Schemat: `prisma/schema.prisma`, migracje: `prisma/migrations/`.
 - Zmiana schematu: edytuj `schema.prisma`, potem `npm run db:new-migration -- nazwa_zmiany`. To tworzy migrację i regeneruje klienta.
 - Podgląd danych: `npx prisma studio`.
+- Konto demo: `npm run db:seed` tworzy użytkownika `example@email.com` z hasłem `password` i przykładową historią subskrypcji (`src/seed.ts`). Ponowne uruchomienie przywraca jego hasło, imię i listę, innych kont nie rusza. Nie działa przy `NODE_ENV=production`.
 
 ### Połączenie z aplikacją
 

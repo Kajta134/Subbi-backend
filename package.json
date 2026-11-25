@@ -12,6 +12,7 @@
     "build": "nest build",
     "start:prod": "prisma migrate deploy && node dist/main.js",
     "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma migrate deploy && nest build && node dist/seed.js",
     "db:new-migration": "prisma migrate dev --name",
     "typecheck": "tsc --noEmit -p test/tsconfig.json",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js"

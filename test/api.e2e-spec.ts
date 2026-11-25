@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { App } from 'supertest/types';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { DEMO_USER, seedDemo } from '../src/seed';
 import { createTestApp, type TestApp } from './utils';
 
 let t: TestApp;
@@ -300,5 +301,30 @@ describe('system', () => {
       expect.arrayContaining(['id', 'name', 'price', 'period', 'firstPayment', 'category', 'symbol', 'colorHex']),
     );
     expect((await request(server).get('/docs')).status).toBe(200);
+  });
+});
+
+describe('seeder', () => {
+  it('tworzy konto demo z poprawną historią i można go uruchomić ponownie', async () => {
+    const prisma = t.app.get(PrismaService);
+    const others = await prisma.user.count();
+    const now = new Date();
+    const count = await seedDemo(prisma, now);
+    await seedDemo(prisma, now);
+    expect(await prisma.user.count()).toBe(others + 1);
+
+    const { email, password } = DEMO_USER;
+    const login = await request(server).post('/auth/login').send({ email, password });
+    expect(login.status).toBe(200);
+    const list = (await request(server).get('/subscriptions').set(auth(login.body.token))).body;
+    expect(list).toHaveLength(count);
+
+    // Dane przechodzą tę samą walidację co zapis z aplikacji.
+    const put = await request(server).put('/subscriptions').set(auth(login.body.token)).send(list);
+    expect(put.body).toEqual(list);
+
+    const inactive = list.filter((s: { deactivatedAt?: string }) => s.deactivatedAt);
+    expect(inactive.length).toBeGreaterThan(0);
+    for (const s of inactive) expect(Date.parse(s.deactivatedAt)).toBeLessThan(now.getTime());
   });
 });

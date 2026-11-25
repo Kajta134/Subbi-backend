@@ -12,6 +12,7 @@ npm run dev                 # prisma migrate deploy + nest start --watch
 npm test                    # Jest e2e suite (test/*.e2e-spec.ts)
 npm test -- -t "zmiana hasła"   # run a single test by name
 npm run typecheck           # tsc over src + test
+npm run db:seed             # demo account example@email.com / password (src/seed.ts, not in production)
 npm run db:new-migration -- <name>   # after editing prisma/schema.prisma
 ```
 
