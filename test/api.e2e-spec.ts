@@ -209,6 +209,21 @@ describe('subskrypcje', () => {
     expect(res.body[0].firstPayment).toBe('2026-10-22T22:00:00.000Z');
   });
 
+  it('data dezaktywacji jest zapisywana, a dla aktywnych pomijana', async () => {
+    const { token } = await registerUser();
+    const active = sub({ name: 'Aktywna' });
+    const inactive = sub({ name: 'Nieaktywna', deactivatedAt: '2026-11-25T18:30:00Z' });
+    const expected = [active, { ...inactive, deactivatedAt: '2026-11-25T18:30:00.000Z' }];
+    const put = await request(server)
+      .put('/subscriptions')
+      .set(auth(token))
+      .send([{ ...active, deactivatedAt: null }, inactive]);
+    expect(put.status).toBe(200);
+    expect(put.body).toEqual(expected);
+    expect(put.body[0]).not.toHaveProperty('deactivatedAt');
+    expect((await request(server).get('/subscriptions').set(auth(token))).body).toEqual(expected);
+  });
+
   it('użytkownicy nie widzą swoich subskrypcji nawzajem', async () => {
     const a = await registerUser();
     const b = await registerUser();
@@ -231,6 +246,8 @@ describe('subskrypcje', () => {
       [[sub({ period: 'week' })], '0.period'],
       [[sub(), sub({ price: -1 })], '1.price'],
       [[sub({ firstPayment: 'wczoraj' })], '0.firstPayment'],
+      [[sub({ deactivatedAt: 'wczoraj' })], '0.deactivatedAt'],
+      [[sub({ deactivatedAt: '' })], '0.deactivatedAt'],
       [[sub({ id: 'abc' })], '0.id'],
       [[sub({ colorHex: 0x1000000 })], '0.colorHex'],
       [[sub({ name: '   ' })], '0.name'],

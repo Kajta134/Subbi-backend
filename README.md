@@ -77,6 +77,7 @@ Endpointy oznaczone 🔒 wymagają nagłówka `Authorization: Bearer <token>`.
 ```
 
 - `period`: `month` | `year`
+- `deactivatedAt` (opcjonalne): moment dezaktywacji. Aktywne subskrypcje nie mają tego pola.
 - `category`: `entertainment` | `tools` | `other`
 - `colorHex`: kolor `0xRRGGBB`
 - Daty w ISO 8601. Serwer zwraca je w UTC z milisekundami.

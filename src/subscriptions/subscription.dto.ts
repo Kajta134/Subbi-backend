@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsInt, IsISO8601, IsNumber, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsIn, IsInt, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { Trim } from '../common/transforms';
 import type { Subscription } from '../generated/prisma/client';
 
@@ -33,6 +33,17 @@ export class SubscriptionDto {
   @IsISO8601({ strict: true }, { message: 'Nieprawidłowa data pierwszej płatności.' })
   firstPayment: string;
 
+  @ApiPropertyOptional({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    example: '2026-11-25T18:30:00.000Z',
+    description: 'Moment dezaktywacji (ISO 8601); brak pola lub null = aktywna',
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true }, { message: 'Nieprawidłowa data dezaktywacji.' })
+  deactivatedAt?: string | null;
+
   @ApiProperty({ enum: CATEGORIES, example: 'entertainment' })
   @IsIn(CATEGORIES, { message: 'Nieznana kategoria.' })
   category: (typeof CATEGORIES)[number];
@@ -56,6 +67,8 @@ export class SubscriptionDto {
       price: s.price,
       period: s.period as SubscriptionDto['period'],
       firstPayment: s.firstPayment.toISOString(),
+      // Dla aktywnych pole jest pomijane – tak samo koduje je aplikacja.
+      ...(s.deactivatedAt && { deactivatedAt: s.deactivatedAt.toISOString() }),
       category: s.category as SubscriptionDto['category'],
       symbol: s.symbol,
       colorHex: s.colorHex,

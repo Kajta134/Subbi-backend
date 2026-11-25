@@ -30,6 +30,7 @@ export class SubscriptionsService {
           price: s.price,
           period: s.period,
           firstPayment: new Date(s.firstPayment),
+          deactivatedAt: s.deactivatedAt ? new Date(s.deactivatedAt) : null,
           category: s.category,
           symbol: s.symbol,
           colorHex: s.colorHex,
