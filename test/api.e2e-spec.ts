@@ -209,6 +209,15 @@ describe('subskrypcje', () => {
     expect(res.body[0].firstPayment).toBe('2026-10-22T22:00:00.000Z');
   });
 
+  it('cena może wynosić najwyżej 10 000', async () => {
+    const { token } = await registerUser();
+    const put = (price: number) => request(server).put('/subscriptions').set(auth(token)).send([sub({ price })]);
+    expect((await put(10_000)).status).toBe(200);
+    const tooHigh = await put(10_000.01);
+    expect(tooHigh.status).toBe(400);
+    expect(tooHigh.body).toEqual({ error: 'Cena subskrypcji może wynosić najwyżej 10 000.', field: '0.price' });
+  });
+
   it('data dezaktywacji jest zapisywana, a dla aktywnych pomijana', async () => {
     const { token } = await registerUser();
     const active = sub({ name: 'Aktywna' });
@@ -245,6 +254,7 @@ describe('subskrypcje', () => {
     const cases: [unknown, string | undefined][] = [
       [[sub({ period: 'week' })], '0.period'],
       [[sub(), sub({ price: -1 })], '1.price'],
+      [[sub({ price: 10_000.01 })], '0.price'],
       [[sub({ firstPayment: 'wczoraj' })], '0.firstPayment'],
       [[sub({ deactivatedAt: 'wczoraj' })], '0.deactivatedAt'],
       [[sub({ deactivatedAt: '' })], '0.deactivatedAt'],

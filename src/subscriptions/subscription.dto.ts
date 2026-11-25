@@ -5,6 +5,8 @@ import type { Subscription } from '../generated/prisma/client';
 
 export const PERIODS = ['month', 'year'] as const;
 export const CATEGORIES = ['entertainment', 'tools', 'other'] as const;
+/** Ten sam limit sprawdza formularz w aplikacji (`Subscription.maxPrice`). */
+export const MAX_PRICE = 10_000;
 
 /** Kształt zgodny z `Subscription` (Codable) w aplikacji iOS. */
 export class SubscriptionDto {
@@ -19,10 +21,10 @@ export class SubscriptionDto {
   @MaxLength(100, { message: 'Nazwa subskrypcji jest za długa.' })
   name: string;
 
-  @ApiProperty({ example: 22.99, minimum: 0, maximum: 1_000_000 })
+  @ApiProperty({ example: 22.99, minimum: 0, maximum: MAX_PRICE })
   @IsNumber({ allowNaN: false, allowInfinity: false }, { message: 'Cena musi być liczbą.' })
   @Min(0, { message: 'Cena nie może być ujemna.' })
-  @Max(1_000_000, { message: 'Cena jest za wysoka.' })
+  @Max(MAX_PRICE, { message: 'Cena subskrypcji może wynosić najwyżej 10 000.' })
   price: number;
 
   @ApiProperty({ enum: PERIODS, example: 'month' })
